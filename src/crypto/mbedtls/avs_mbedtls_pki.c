@@ -348,9 +348,35 @@ static avs_error_t pkcs7_inner_content_info_verify(unsigned char **p,
 
     *p += sizeof(ID_DATA_OID);
 
-    // for indefinite-length encoding, we expect EOC here
-    if (len < 0 && (get_ber_tag(p, end, &len, ASN1_BER_EOC_TAG) || len != 0)) {
-        goto malformed;
+    // for indefinite-length encoding
+    if (len < 0)
+    {
+        // Search first EOC tag
+        while ((len != 0) && (*p < end))
+        {
+            if (get_ber_tag(p, end, &len, ASN1_BER_EOC_TAG))
+            {
+                // Not a EOC Tag -> skip byte
+                *p+=1;
+            }
+        }
+
+        // Consume all other EOC tags
+        while ((len == 0) && (*p < end))
+        {
+            if (get_ber_tag(p, end, &len, ASN1_BER_EOC_TAG))
+            {
+                // Not a EOC Tag
+                // -> break
+                len = -1;
+            }
+        }
+
+        // If EOC not found
+        if (*p == end)
+        {
+            goto malformed;
+        }
     }
 
     return AVS_OK;
